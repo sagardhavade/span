@@ -1,0 +1,2 @@
+[01-Dec-2021 16:25:11 UTC] PHP Fatal error:  Cannot redeclare Projectmanager::sites() in /home4/webklvjz/public_html/Sop/application/controllers/Projectmanager.php on line 37
+[15-Dec-2021 17:09:01 UTC] PHP Fatal error:  Allowed memory size of 268435456 bytes exhausted (tried to allocate 81567968 bytes) in /home4/webklvjz/public_html/Sop/system/core/Output.php on line 198
