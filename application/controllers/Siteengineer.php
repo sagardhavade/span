@@ -22,12 +22,6 @@ class Siteengineer extends MY_Controller {
 		$this->load->view('admin/siteengineer_project',$data);
 		$this->load->view('admin/common/footer');
 	}
-	public function start_survey($site_id)
-	{
-		$this->load->view('admin/common/header');
-		$this->load->view('admin/testn_view');
-		$this->load->view('admin/common/footer');
-	}
 	
 	public function sites($project_id)
 	{
@@ -72,6 +66,7 @@ class Siteengineer extends MY_Controller {
 		$this->load->view('admin/Siteengineer/edit_site_view',$data);
 		$this->load->view('admin/common/footer');
 	}
+
 	public function sites_server($project_id)
 	{
 		$user_id=$this->session->userdata('ses_userlogin_id');
@@ -147,6 +142,22 @@ class Siteengineer extends MY_Controller {
 	}
 	
 
+	public function start_survey($site_id)
+	{
+		$where = array(
+			'created_by' => $this->user_id,
+			'site_id' => $site_id
+		);
+		$data=$this->Common_models->get_entry_row('site_survey',$where,'id','DESC');
+
+		// echo "<pre>"; print_r($data); die;
+
+		$data['site_id'] = $site_id;
+
+		$this->load->view('admin/common/header');
+		$this->load->view('admin/testn_view', $data);
+		$this->load->view('admin/common/footer');
+	}
 
 	public function contractor_execution($site_id)
 	{
@@ -222,6 +233,62 @@ class Siteengineer extends MY_Controller {
 		}
 
 		return redirect('Siteengineer/contractor_execution/'.$postdata['site_id']);
+	}
+
+	public function add_site_survey()
+	{
+		$postdata=$this->input->post();
+
+		$insertdata['site_survey_actual_date']=$postdata['site_survey_actual_date'];
+		$insertdata['source_depth']=$postdata['source_depth'];
+		$insertdata['source_dia']=$postdata['source_dia'];
+		$insertdata['static_water_level']=$postdata['static_water_level'];
+		$insertdata['pumping_water_level']=$postdata['pumping_water_level'];
+		$insertdata['pump_head_recommended']=$postdata['pump_head_recommended'];
+		$insertdata['length_of_hdpe_pipe_required']=$postdata['length_of_hdpe_pipe_required'];
+		$insertdata['cable_length_required']=$postdata['cable_length_required'];
+		$insertdata['wire_rope_length_required']=$postdata['wire_rope_length_required'];
+		$insertdata['yield_test_required']=$postdata['yield_test_required'];
+		$insertdata['yield_test_start_date']=$postdata['yield_test_start_date'];
+		$insertdata['yield_test_end_date']=$postdata['yield_test_end_date'];
+		$insertdata['yield_of_borewell']=$postdata['yield_of_borewell'];
+		$insertdata['yield_test_status']=$postdata['yield_test_status'];
+		$insertdata['site_feasible_status']=$postdata['site_feasible_status'];
+		$insertdata['created_by']=$this->user_id;
+		$insertdata['site_id']=$postdata['site_id'];
+		$insertdata['created_at']=date('Y-m-d H:i:s');
+		
+		if(!empty($_FILES['filled_site_survey_form']['name']))
+		{
+			$ext=explode(".",$_FILES['filled_site_survey_form']['name']);
+			$ext1=end($ext);
+			$file_name=rand(22,9999).time().".".$ext1;
+			if(move_uploaded_file($_FILES['filled_site_survey_form']['tmp_name'],"assets/project_document/$file_name"))
+			{
+				$insertdata['filled_site_survey_form']=$file_name;
+			}
+		}
+
+		if(!empty($_FILES['filled_yield_test_form']['name']))
+		{
+			$ext=explode(".",$_FILES['filled_yield_test_form']['name']);
+			$ext1=end($ext);
+			$file_name=rand(22,9999).time().".".$ext1;
+			if(move_uploaded_file($_FILES['filled_yield_test_form']['tmp_name'],"assets/project_document/$file_name"))
+			{
+				$insertdata['filled_yield_test_form']=$file_name;
+			}
+		}
+
+		$add_data=$this->Common_models->add_entry('site_survey',$insertdata);
+
+		if ($add_data) {
+			$this->session->set_flashdata('response','<p class="alert alert-success">Success! site survey updated successfully.</p>');
+		} else {
+			$this->session->set_flashdata('response','<p class="alert alert-danger">Failed! unable to update.</p>');
+		}
+
+		return redirect('Siteengineer/start_survey/'.$postdata['site_id']);
 	}
 }
 ?>
