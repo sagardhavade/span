@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Siteengineer extends MY_Controller {
+class Areamanager extends MY_Controller {
 
 	public $user_id;
 
@@ -14,12 +14,27 @@ class Siteengineer extends MY_Controller {
 	public function Projects()
 	{
 		$user_id=$this->session->userdata('ses_userlogin_id');
-		$sel="select * from project_tbl where id IN (select project_id from sites_tbl where site_engineer='$user_id' GROUP BY project_id order by id DESC)";
+		$sel="select * from project_tbl where id IN (select project_id from sites_tbl where area_manager='$user_id' GROUP BY project_id order by id DESC)";
 		$q=$this->db->query($sel);
 		$res=$q->result_array();
 		$data['project_list']=$res;
 		$this->load->view('admin/common/header');
-		$this->load->view('admin/siteengineer_project',$data);
+		$this->load->view('admin/areamanager_project',$data);
+		$this->load->view('admin/common/footer');
+	}
+	
+	public function icr_movement($site_id)
+	{
+		$where = array(
+			'area_manager_id' => $this->user_id,
+			'site_id' => $site_id
+		);
+		$data=$this->Common_models->get_entry_row('icr_movement',$where,'id','DESC');
+		
+		$data['site_id'] = $site_id;
+
+		$this->load->view('admin/common/header');
+		$this->load->view('admin/Areamanager/icr_movement', $data);
 		$this->load->view('admin/common/footer');
 	}
 	
@@ -28,16 +43,16 @@ class Siteengineer extends MY_Controller {
 		$user_id=$this->session->userdata('ses_userlogin_id');
 		$where1=array(
 			'project_id'=>$project_id,
-			'site_engineer'=>$user_id
+			'area_manager'=>$user_id
 		);
 		$data['sites_list']=$this->Common_models->get_entry('sites_tbl',$where1,'id','DESC',2);
 		$data['project_detail']=$this->Common_models->get_entry_row('project_tbl',array('id'=>$project_id));
-		
+		// echo "<pre>"; print_r($data); die;
 		$this->load->view('admin/common/header');
-		$this->load->view('admin/Siteengineer/sites_list',$data);
+		$this->load->view('admin/Areamanager/sites_list',$data);
 		$this->load->view('admin/common/footer');
 	}
-	
+
 	public function updatesite($site_id)
 	{
 		$postdata=$this->input->post();
@@ -75,7 +90,7 @@ class Siteengineer extends MY_Controller {
 		$limit=$get_data['length'];
 		$where1=array(
 			'project_id'=>$project_id,
-			'site_engineer'=>$user_id
+			'area_manager'=>$user_id
 		);
 		$recordsTotal=$this->Common_models->counts_data('sites_tbl',$where1);
 		$arrayList = [];
@@ -85,38 +100,20 @@ class Siteengineer extends MY_Controller {
 
 			$site_engineer=$area_manager=$contractor='';
 			
-			// check list id and user id is available in gather table or not
-			$isGathered=$this->Common_models->get_entry_row('sites_tbl', array('id' => $list['id'], 'site_engineer' => $user_id));
-			if (count($isGathered) > 0) {
-				$action='<a href="'.base_url('Siteengineer/edit_site/'.$list['id']).'" type="button" class="btn btn-block btn-danger">Gathered</a>';
-
-				// check list id and user id is available in execution table or not
-				$isSurveyUpdated=$this->Common_models->get_entry_row('site_survey', array('site_id' => $list['id'], 'site_engineer_id' => $user_id));
-
-				if (isset($isSurveyUpdated['id'])) {
-					$action.='<a href="'.base_url('Siteengineer/start_survey/'.$list['id']).'" type="button" class="btn btn-block btn-primary">Survey updated</a>';
-
-					// check list id and user id is available in survey table or not
-					$isExecuted=$this->Common_models->get_entry_row('contractor_execution', array('site_id' => $list['id'], 'site_engineer_id' => $user_id));
-					if (isset($isExecuted['id'])) {
-						$isExecuted = 'Execution Done';
-					} else {
-						$isExecuted = 'Execution';
-					}
-
-					$action.='<a href="'.base_url('Siteengineer/contractor_execution/'.$list['id']).'" type="button" class="btn btn-block btn-success">'.$isExecuted.'</a>';
-				} else {
-					$action.='<a href="'.base_url('Siteengineer/start_survey/'.$list['id']).'" type="button" class="btn btn-block btn-primary">Survey update</a>';
-				}
+			// check list id and user id is available or not
+			$isMovementDone=$this->Common_models->get_entry_row('icr_movement', array('site_id' => $list['id'], 'area_manager_id' => $user_id));
+			
+			if ($isMovementDone) {
+				$action='<a href="'.base_url('Areamanager/icr_movement/'.$list['id']).'" type="button" class="btn btn-block btn-danger">ICR Movement Done</a>';
 			} else {
-				$action='<a href="'.base_url('Siteengineer/edit_site/'.$list['id']).'" type="button" class="btn btn-block btn-danger">Gathere</a>';
+				$action='<a href="'.base_url('Areamanager/icr_movement/'.$list['id']).'" type="button" class="btn btn-block btn-danger">ICR movement</a>';
 			}
 
 			if($list['site_engineer'])
 			{
 				$whereoo=array('id'=>$list['site_engineer']);
 				$enter_res=$this->Common_models->get_entry_row('admin_tbl',$whereoo);
-				$site_engineer=$enter_res['name'];
+				$site_engineer=$enter_res['name'];			
 			}
 
 			if($list['area_manager'])
@@ -265,64 +262,70 @@ class Siteengineer extends MY_Controller {
 		return redirect('Siteengineer/contractor_execution/'.$postdata['site_id']);
 	}
 
-	public function add_site_survey()
+	public function add_icr_movement()
 	{
 		$postdata=$this->input->post();
 
-		$insertdata['site_survey_actual_date']=$postdata['site_survey_actual_date'];
-		$insertdata['source_depth']=$postdata['source_depth'];
-		$insertdata['source_dia']=$postdata['source_dia'];
-		$insertdata['static_water_level']=$postdata['static_water_level'];
-		$insertdata['pumping_water_level']=$postdata['pumping_water_level'];
-		$insertdata['pump_head_recommended']=$postdata['pump_head_recommended'];
-		$insertdata['length_of_hdpe_pipe_required']=$postdata['length_of_hdpe_pipe_required'];
-		$insertdata['cable_length_required']=$postdata['cable_length_required'];
-		$insertdata['wire_rope_length_required']=$postdata['wire_rope_length_required'];
-		$insertdata['yield_test_required']=$postdata['yield_test_required'];
-		$insertdata['yield_test_start_date']=$postdata['yield_test_start_date'];
-		$insertdata['yield_test_end_date']=$postdata['yield_test_end_date'];
-		$insertdata['yield_of_borewell']=$postdata['yield_of_borewell'];
-		$insertdata['yield_test_status']=$postdata['yield_test_status'];
-		$insertdata['site_feasible_status']=$postdata['site_feasible_status'];
-		$insertdata['site_engineer_id']=$this->user_id;
+		$insertdata['limeman_sign_date']=$postdata['limeman_sign_date'];
+		$insertdata['ae_je_sign_date']=$postdata['ae_je_sign_date'];
+		$insertdata['inward_date']=$postdata['inward_date'];
+		$insertdata['ro_date']=$postdata['ro_date'];
+		$insertdata['do_date']=$postdata['do_date'];
+		$insertdata['ho_date']=$postdata['ho_date'];
+		$insertdata['act_dept_date']=$postdata['act_dept_date'];
+		$insertdata['se_tbl_date']=$postdata['se_tbl_date'];
+		$insertdata['moved_to_ho_date']=$postdata['moved_to_ho_date'];
+		// $insertdata['invoice_date']=$postdata['invoice_date'];
+		$insertdata['area_manager_id']=$this->user_id;
 		$insertdata['site_id']=$postdata['site_id'];
 		$insertdata['created_at']=date('Y-m-d H:i:s');
 
-		if(!empty($_FILES['filled_site_survey_form']['name']))
+		if(!empty($_FILES['payment_advice_file']['name']))
 		{
-			$ext=explode(".",$_FILES['filled_site_survey_form']['name']);
+			$ext=explode(".",$_FILES['payment_advice_file']['name']);
 			$ext1=end($ext);
 			$file_name=rand(22,9999).time().".".$ext1;
-			if(move_uploaded_file($_FILES['filled_site_survey_form']['tmp_name'],"assets/project_document/$file_name"))
+			if(move_uploaded_file($_FILES['payment_advice_file']['tmp_name'],"assets/project_document/$file_name"))
 			{
-				$insertdata['filled_site_survey_form']=$file_name;
+				$insertdata['payment_advice_file']=$file_name;
 			}
 		}
 
-		if(!empty($_FILES['filled_yield_test_form']['name']))
+		if(!empty($_FILES['filled_signed_file']['name']))
 		{
-			$ext=explode(".",$_FILES['filled_yield_test_form']['name']);
+			$ext=explode(".",$_FILES['filled_signed_file']['name']);
 			$ext1=end($ext);
 			$file_name=rand(22,9999).time().".".$ext1;
-			if(move_uploaded_file($_FILES['filled_yield_test_form']['tmp_name'],"assets/project_document/$file_name"))
+			if(move_uploaded_file($_FILES['filled_signed_file']['tmp_name'],"assets/project_document/$file_name"))
 			{
-				$insertdata['filled_yield_test_form']=$file_name;
+				$insertdata['filled_signed_file']=$file_name;
+			}
+		}
+
+		if(!empty($_FILES['hamipatra_file']['name']))
+		{
+			$ext=explode(".",$_FILES['hamipatra_file']['name']);
+			$ext1=end($ext);
+			$file_name=rand(22,9999).time().".".$ext1;
+			if(move_uploaded_file($_FILES['hamipatra_file']['tmp_name'],"assets/project_document/$file_name"))
+			{
+				$insertdata['hamipatra_file']=$file_name;
 			}
 		}
 
 		if (empty($postdata['id'])) {
-			$add_data=$this->Common_models->add_entry('site_survey',$insertdata);
+			$add_data=$this->Common_models->add_entry('icr_movement',$insertdata);
 		} else {
-			$add_data=$this->Common_models->update_entry('site_survey',$insertdata, array('id' => $postdata['id']));
+			$add_data=$this->Common_models->update_entry('icr_movement',$insertdata, array('id' => $postdata['id']));
 		}
 
 		if ($add_data) {
-			$this->session->set_flashdata('response','<p class="alert alert-success">Success! site survey updated successfully.</p>');
+			$this->session->set_flashdata('response','<p class="alert alert-success">Success! ICR movement updated successfully.</p>');
 		} else {
 			$this->session->set_flashdata('response','<p class="alert alert-danger">Failed! unable to update.</p>');
 		}
 
-		return redirect('Siteengineer/start_survey/'.$postdata['site_id']);
+		return redirect('Areamanager/icr_movement/'.$postdata['site_id']);
 	}
 }
 ?>
